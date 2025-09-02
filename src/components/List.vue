@@ -6,13 +6,17 @@ import { usePokeStore } from "../store/main";
 import router from "../router";
 const store = usePokeStore();
 const { pokemon } = storeToRefs(store);
-const data = reactive({ pokemon: [] });
+const data = reactive({ pokemon: [], loading: true });
 watch(
   () => store.searchKey,
   (newValue) => {
+    data.loading = true;
     let searchValue = newValue.trim().toLocaleLowerCase();
     if (searchValue == "") data.pokemon = pokemon.value;
     data.pokemon = getFilteredPokemon(searchValue);
+    setTimeout(() => {
+      data.loading = false;
+    }, 1000);
   }
 );
 
@@ -21,10 +25,14 @@ const fetchAllPokemonStore = async () => {
     .get("https://pokeapi.co/api/v2/pokemon?limit=100000&offset=0")
     .then((res) => res?.data?.results ?? [])
     .then((a) => {
+      data.loading = false;
       store.pokemon = a;
       data.pokemon = a;
     })
-    .catch((err) => console.error({ err }));
+    .catch((err) => {
+      data.loading = true;
+      console.error({ err });
+    });
 };
 
 onMounted(fetchAllPokemonStore);
@@ -48,25 +56,35 @@ function loadPokemon(id) {
 </script>
 <template>
   <section class="pokemon-list">
-    <ul
-      v-if="data.pokemon.length > 0"
-      class="grid xl:grid-cols-4 lg:grid-cols-3 md:grid-cols-2 gap-4 items-center justify-center text-center"
-    >
-      <li
-        v-for="pokemon in data.pokemon"
-        class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100"
-        @click="loadPokemon(pokemonId(pokemon.url))"
+    <div v-if="data.loading" class="loader-container">
+      <div class="pokemon"></div>
+    </div>
+    <div v-else class='h-full w-full'>
+      <ul
+        v-if="data.pokemon.length > 0"
+        class="grid xl:grid-cols-5 lg:grid-cols-3 md:grid-cols-2 gap-4 items-center justify-center text-center"
       >
-        <img
-          :src="`https://raw.githubusercontent.com/pokeapi/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId(
-            pokemon.url
-          )}.png`"
-          :alt="pokemon.name"
-        />
-        {{ pokemonName(pokemon.name) ?? "No Name" }}
-        <span class="pokeId">#{{ pokemonId(pokemon.url) }}</span>
-      </li>
-    </ul>
-    <div v-else id="not-found-message">Pokemon not found</div>
+        <li
+          v-for="pokemon in data.pokemon"
+          class="block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-100"
+          @click="loadPokemon(pokemonId(pokemon.url))"
+        >
+          <img
+            :src="`https://raw.githubusercontent.com/pokeapi/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId(
+              pokemon.url
+            )}.png`"
+            :alt="pokemon.name"
+          />
+          {{ pokemonName(pokemon.name) ?? "No Name" }}
+          <span class="pokeId">#{{ pokemonId(pokemon.url) }}</span>
+        </li>
+      </ul>
+      <div
+        v-else
+        id="not-found-message w-['100%'] flex justify-center items-center"
+      >
+        <div class="">Pokemon not found</div>
+      </div>
+    </div>
   </section>
 </template>
